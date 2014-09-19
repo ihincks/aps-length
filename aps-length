@@ -26,6 +26,7 @@ import optparse
 import os
 import sys
 import subprocess
+import re
 
 word_limit = {'PRL': 3500,
               'PRA-RC': 3500,
@@ -34,7 +35,21 @@ word_limit = {'PRL': 3500,
               'PRD-RC': 4000,
               'PRE-RC': 3500,
               'PRApplied': 3500,
-              'PRST-PER': 3500}
+              'PRST-PER': 3500,
+              'PRX-RA': 20000,
+              'PRApplied-RA': 30000}
+
+abstract_limit = {'PRL': ('char', 600),
+                  'PRA-RC': ('word', 500, 0.05),
+                  'PRB-RC': ('word', 500, 0.05),
+                  'PRC-RC': ('word', 500, 0.05),
+                  'PRD-RC': ('word', 500, 0.05),
+                  'PRE-RC': ('word', 500, 0.05),
+                  'PRApplied': ('word', 500, 0.05),
+                  'PRST-PER': ('word', 500, 0.05),
+                  'PRX-RA': ('word', 500, 0.05),
+                  'PRApplied-RA': ('word', 500, 0.05)}
+
 
 wordcount_tex_contents = r"""\ProvidesFile{wordcount.tex}[2000/09/27 v1.5 Michael Downes]
 % Copyright 2000 Michael John Downes
@@ -395,6 +410,27 @@ def count_tables_words(tex_lines):
     print 'Tables: %r' % table_words
     return sum(table_words)
 
+def count_abstract(tex_lines):
+    begin_abstract = [i for (i, line) in enumerate(tex_lines) if r'\begin{abstra' in line]
+    begin_abstract = begin_abstract[0]
+    abstract_text = ""
+    for line in tex_lines[begin_abstract+1:]:
+	if r'\end{abstra' in line:
+            break
+        # remove stuff that's commented out
+        line = re.sub(r'%.*', r'', line) 
+        abstract_text += line
+    # remove new line characters
+    abstract_text = re.sub('\n', '', abstract_text)
+    # put a single space following each period
+    abstract_text = re.sub(r'\.\s*', r'. ', abstract_text)
+    # remove any commands and replace with their first argument
+    abstract_text = re.sub(r'\\.+\{(.*)\}', r'\1', abstract_text)
+    #print
+    #print 'Abstract:'
+    #print abstract_text
+    # warning: this doesn't deal with equations at all
+    return len(abstract_text), len(re.findall(r'\w+', abstract_text))
 
 def count_figures_words(detex_lines, tex_lines, opts):
     if opts.var is None:
@@ -490,6 +526,29 @@ def process(tex_file, opts):
     fig_words = count_figures_words(detex_lines, tex_lines, opts)
     table_words = count_tables_words(tex_lines)
     total_words = (main_text_words + eqn_words + fig_words + table_words)
+    abstract_chars, abstract_words = count_abstract(tex_lines)
+
+    print
+    al = abstract_limit[opts.journal]
+    if 'char' in al[0]:
+        lim = al[1]
+        over_under = 'OVER' if abstract_chars > lim else 'UNDER'
+        print 'Abstract:       %6d characters' % abstract_chars
+        print ('Abstract is currently %d characters (%.0f%%) %s limit of %d characters.' %
+               (abs(abstract_chars - lim),
+                float(abstract_chars-lim)/lim*100., over_under,
+                lim))
+    else:
+        # the abstract limit is the minimum of some number of words and some fraction of total_words
+        lim = min(al[1], round(total_words * al[2]))
+        over_under = 'OVER' if abstract_words > lim else 'UNDER'
+        print 'Abstract:       %6d words' % abstract_words
+        print ('Abstract is currently %d words (%.0f%%) %s limit of %d words.' %
+               (abs(abstract_words - lim),
+                float(abstract_words-lim)/lim*100., over_under,
+                lim))
+        if lim < al[1]:
+            print 'Abstract word limit was set by taking %.0f%% of the total paper length.' % (100*al[2])
 
     print
     print 'Main text:      %6d words' % main_text_words
@@ -529,7 +588,7 @@ Default is gs, ImageMagick identify also supported.''',
 parser.add_option('--scale-figs', type=float, default=1.1,
                   help='Scale estimate of figure word counts by factor, default 1.1 (10%)')
 parser.add_option('-j', '--journal', metavar='PRL', default='PRL',
-                  help='Journal abbreviation (e.g. PRL, PRB-RC)')
+                  help='Journal abbreviation (e.g. PRL, PRA-RC, PRB-RC, PRC-RC, PRD-RC, PRE-RC, PRApplied, PRST-PER, PRX-RA, PRApplied-RA)')
 parser.add_option('-l', '--latex', default='pdflatex',
                   help='Latex executable. Default is "pdflatex".')
 
