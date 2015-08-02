@@ -313,7 +313,7 @@ def count_main_text_words_wordcount(tex_lines, opts):
     while mod_tex_lines:
         line = mod_tex_lines.pop(0)
         for env in filterenvs:
-            if r'\begin{%s' % env in line:
+            if r'\begin{%s}' % env in line:
                 while mod_tex_lines and not r'\end{%s}' % env in line:
                     line = '% ' + line
                     filtered_lines.append(line)
@@ -335,10 +335,10 @@ def count_main_text_words_wordcount(tex_lines, opts):
     wordcount_tex_file.write(wordcount_tex_contents)
     wordcount_tex_file.close()
 
-    os.system('%s tmp_tex_file > /dev/null 2>&1' % opts.latex)
+    os.system('%s -interaction=batchmode tmp_tex_file > /dev/null 2>&1' % opts.latex)
     os.system('bibtex tmp_tex_file > /dev/null 2>&1')
-    os.system('%s tmp_tex_file > /dev/null 2>&1' % opts.latex)
-    os.system('%s tmp_tex_file > /dev/null 2>&1' % opts.latex)
+    os.system('%s -interaction=batchmode tmp_tex_file > /dev/null 2>&1' % opts.latex)
+    os.system('%s -interaction=batchmode tmp_tex_file > /dev/null 2>&1' % opts.latex)
     os.system(r'echo tmp_tex_file.tex | %s wordcount.tex > /dev/null 2>&1' % opts.latex)
     wordcount_log = open('wordcount.log').readlines()
 
