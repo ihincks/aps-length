@@ -27,6 +27,7 @@ import os
 import sys
 import subprocess
 import re
+import itertools as it
 
 word_limit = {'PRL': 3500,
               'PRA-RC': 3500,
@@ -448,7 +449,7 @@ def count_figures_words(detex_lines, tex_lines, opts):
     fig_words = []
     #figs = {}
     
-    for fig_i, fig_line in enumerate(fig_lines):
+    for fig_i, fig_line in it.islice(enumerate(fig_lines), opts.ignore_figures_after):
         filename = fig_line.strip()[1:-1].split()[1]
         this_fig_lines = [ (i, line) for i, line in enumerate(tex_lines) if filename in line and
                            ('input' in line or 'includegraphics' in line)]
@@ -616,6 +617,8 @@ parser.add_option('-j', '--journal', metavar='PRL', default='PRL',
                   help='Journal abbreviation (e.g. PRL, PRA-RC, PRB-RC, PRC-RC, PRD-RC, PRE-RC, PRApplied, PRST-PER, PRX-RA, PRApplied-RA)')
 parser.add_option('-l', '--latex', default='pdflatex',
                   help='Latex executable. Default is "pdflatex".')
+parser.add_option('--ignore-figures-after', type=int, default=None,
+                  help='Specifies the last figure in the main text, such that all further figures are ignored.')
 
            
 opts, args = parser.parse_args()
